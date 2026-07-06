@@ -14,9 +14,6 @@ import requests
 import yfinance as yf
 from bs4 import BeautifulSoup
 
-# ---------------------------------------------------------------------------
-# Config
-# ---------------------------------------------------------------------------
 START_DATE = "2020-01-01"
 END_DATE   = datetime.today().strftime("%Y-%m-%d")
 RAW_DIR    = "data/raw"
@@ -24,17 +21,12 @@ RAW_DIR    = "data/raw"
 os.makedirs(RAW_DIR, exist_ok=True)
 
 
-# ---------------------------------------------------------------------------
-# 1. Market data via yfinance
-# ---------------------------------------------------------------------------
-
 def fetch_xauusd(start: str, end: str) -> pd.DataFrame:
     """XAU/USD gold futures daily close (COMEX GC=F)."""
     df = yf.download("GC=F", start=start, end=end, progress=False, auto_adjust=True)
     if df.empty:
         raise RuntimeError("yfinance returned empty data for GC=F")
 
-    # yfinance >= 0.2.x may return a MultiIndex; flatten it
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
 
@@ -58,10 +50,6 @@ def fetch_usdidr(start: str, end: str) -> pd.DataFrame:
     df.index.name = "date"
     return df
 
-
-# ---------------------------------------------------------------------------
-# 2. UBS gold price scraper (harga-emas.org)
-# ---------------------------------------------------------------------------
 
 def _parse_idr_price(raw: str) -> float:
     """
@@ -109,7 +97,7 @@ def scrape_ubs_prices(max_pages: int = 60) -> pd.DataFrame:
             print(f"  No <table> found on page {page}. Pagination complete.")
             break
 
-        rows = table.find_all("tr")[1:]  # skip header row
+        rows = table.find_all("tr")[1:]
         if not rows:
             break
 
@@ -131,7 +119,7 @@ def scrape_ubs_prices(max_pages: int = 60) -> pd.DataFrame:
         if page_records == 0:
             break
 
-        time.sleep(0.8)  # polite crawl delay
+        time.sleep(0.8)
 
     if not records:
         raise RuntimeError(
@@ -150,10 +138,6 @@ def scrape_ubs_prices(max_pages: int = 60) -> pd.DataFrame:
     return df
 
 
-# ---------------------------------------------------------------------------
-# 3. Merge and validate
-# ---------------------------------------------------------------------------
-
 def merge_datasets(
     xau: pd.DataFrame,
     idr: pd.DataFrame,
@@ -166,8 +150,6 @@ def merge_datasets(
     df = xau.join(idr, how="inner").join(ubs, how="inner")
     df.dropna(inplace=True)
 
-    # Sanity check: derived IDR gold price should loosely match ubs_idr_per_gram
-    # Expected relationship: ubs_idr_per_gram ~ (xauusd / 31.1035) * usdidr * (1 + premium)
     df["implied_idr_per_gram"] = (df["xauusd"] / 31.1035) * df["usdidr"]
     df["ubs_premium_pct"]      = (
         (df["ubs_idr_per_gram"] - df["implied_idr_per_gram"])
@@ -177,10 +159,6 @@ def merge_datasets(
 
     return df
 
-
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     print(f"Date range: {START_DATE} to {END_DATE}")
