@@ -6,13 +6,11 @@ Outputs individual CSVs and a merged CSV to data/raw/ for Phase 2.
 """
 
 import os
-import time
 from datetime import datetime
 
 import pandas as pd
 import requests
 import yfinance as yf
-from bs4 import BeautifulSoup
 
 START_DATE = "2020-01-01"
 END_DATE   = datetime.today().strftime("%Y-%m-%d")
@@ -51,82 +49,57 @@ def fetch_usdidr(start: str, end: str) -> pd.DataFrame:
     return df
 
 
-def _parse_idr_price(raw: str) -> float:
-    """
-    Clean IDR price strings to float.
-    Handles formats: '1.050.000', '1,050,000', '1050000'
-    """
-    cleaned = raw.replace(".", "").replace(",", "").strip()
-    return float(cleaned)
 
-
-def scrape_ubs_prices(max_pages: int = 60) -> pd.DataFrame:
+def fetch_ubs_historical(days: int = 1095) -> pd.DataFrame:
     """
-    Scrapes UBS 1-gram gold price history (IDR) from harga-emas.org.
+    Fetches UBS gold sell price history from the ubslifestyle.com internal API.
 
-    Source URL: https://harga-emas.org/history/ubs/
-    The site paginates via ?p=N. If the layout ever changes, inspect
-    the table HTML at that URL and adjust the column index (cols[0]=date,
-    cols[1]=buy price) accordingly.
+    Endpoint : POST https://ubslifestyle.com/wp-admin/admin-ajax.php
+    Payload  : action=get_harga_emas_hari_ini
+               path=ajax/chart_interval_jual/GOLD/{days}
+
+    Response format (per data point):
+        [timestamp_ms, sell_price, sell_price, sell_price, buyback_price]
     """
-    BASE_URL = "https://harga-emas.org/history/ubs/"
-    HEADERS  = {
+    url     = "https://ubslifestyle.com/wp-admin/admin-ajax.php"
+    headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/125.0.0.0 Safari/537.36"
-        )
+        ),
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Referer":      "https://ubslifestyle.com/harga-buyback-hari-ini/",
+    }
+    payload = {
+        "action": "get_harga_emas_hari_ini",
+        "path":   f"ajax/chart_interval_jual/GOLD/{days}",
     }
 
+    resp = requests.post(url, data=payload, headers=headers, timeout=30)
+    resp.raise_for_status()
+
+    body = resp.json()
+
+    if not body or not isinstance(body, list) or "data" not in body[0]:
+        raise RuntimeError(f"Unexpected API response structure: {str(body)[:200]}")
+
     records = []
-
-    for page in range(1, max_pages + 1):
-        url = BASE_URL if page == 1 else f"{BASE_URL}?p={page}"
-
+    for point in body[0]["data"]:
         try:
-            resp = requests.get(url, headers=HEADERS, timeout=20)
-            resp.raise_for_status()
-        except requests.RequestException as exc:
-            print(f"  Request failed on page {page}: {exc}")
-            break
-
-        soup  = BeautifulSoup(resp.text, "lxml")
-        table = soup.find("table")
-
-        if table is None:
-            print(f"  No <table> found on page {page}. Pagination complete.")
-            break
-
-        rows = table.find_all("tr")[1:]
-        if not rows:
-            break
-
-        page_records = 0
-        for row in rows:
-            cols = [td.get_text(strip=True) for td in row.find_all("td")]
-            if len(cols) < 2:
-                continue
-            try:
-                date  = pd.to_datetime(cols[0], dayfirst=True)
-                price = _parse_idr_price(cols[1])
-                records.append({"date": date, "ubs_idr_per_gram": price})
-                page_records += 1
-            except (ValueError, IndexError):
-                continue
-
-        print(f"  Page {page}: {page_records} rows parsed")
-
-        if page_records == 0:
-            break
-
-        time.sleep(0.8)
+            date         = pd.Timestamp(point[0], unit="ms").normalize()
+            sell_price   = float(point[1])
+            buyback_price = float(point[4])
+            records.append({
+                "date":               date,
+                "ubs_sell_idr":       sell_price,
+                "ubs_buyback_idr":    buyback_price,
+            })
+        except (IndexError, ValueError, TypeError):
+            continue
 
     if not records:
-        raise RuntimeError(
-            "Scraped 0 UBS records. "
-            "Open https://harga-emas.org/history/ubs/ in a browser, "
-            "inspect the table HTML, and update the column indices."
-        )
+        raise RuntimeError("Parsed 0 records from UBS API response.")
 
     df = (
         pd.DataFrame(records)
@@ -152,7 +125,7 @@ def merge_datasets(
 
     df["implied_idr_per_gram"] = (df["xauusd"] / 31.1035) * df["usdidr"]
     df["ubs_premium_pct"]      = (
-        (df["ubs_idr_per_gram"] - df["implied_idr_per_gram"])
+        (df["ubs_sell_idr"] - df["implied_idr_per_gram"])
         / df["implied_idr_per_gram"]
         * 100
     )
@@ -174,8 +147,8 @@ if __name__ == "__main__":
     idr.to_csv(os.path.join(RAW_DIR, "usdidr.csv"))
     print(f"  {len(idr)} rows saved -> {RAW_DIR}/usdidr.csv\n")
 
-    print("[3/3] Scraping UBS prices (harga-emas.org)...")
-    ubs = scrape_ubs_prices()
+    print("[3/3] Fetching UBS historical prices (ubslifestyle.com API)...")
+    ubs = fetch_ubs_historical(days=1095)
     ubs.to_csv(os.path.join(RAW_DIR, "ubs_prices.csv"))
     print(f"  {len(ubs)} rows saved -> {RAW_DIR}/ubs_prices.csv\n")
 
