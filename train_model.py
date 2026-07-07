@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
 Phase 2 - Model Training
-Loads merged_features.csv, engineers features, trains XGBoost with
-TimeSeriesSplit cross-validation, and exports model/model.pkl.
+Target: predict UBS premium ratio (ubs_sell / implied_spot).
+Final price = predicted_ratio * live_implied_spot.
+This decouples the market movement (known exactly) from UBS markup (what we model).
 """
 
 import json
@@ -17,11 +18,15 @@ from xgboost import XGBRegressor
 
 DATA_PATH = "data/raw/merged_features.csv"
 MODEL_DIR = "model"
-TARGET    = "ubs_sell_idr"
+TARGET    = "ubs_premium_ratio"
 
 os.makedirs(MODEL_DIR, exist_ok=True)
 
-EXCLUDE_COLS = {"ubs_sell_idr", "ubs_buyback_idr", "implied_idr_per_gram", "ubs_premium_pct"}
+EXCLUDE_COLS = {
+    "ubs_sell_idr", "ubs_buyback_idr",
+    "implied_idr_per_gram", "ubs_premium_pct",
+    "ubs_premium_ratio",
+}
 
 
 def load_data(path: str) -> pd.DataFrame:
@@ -33,21 +38,23 @@ def load_data(path: str) -> pd.DataFrame:
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
+    df["implied_x_1g"]      = (df["xauusd"] / 31.1035) * df["usdidr"]
+    df["ubs_premium_ratio"]  = df["ubs_sell_idr"] / df["implied_x_1g"]
+
     for lag in [1, 2, 3, 5, 7]:
-        df[f"xauusd_lag{lag}"]   = df["xauusd"].shift(lag)
-        df[f"usdidr_lag{lag}"]   = df["usdidr"].shift(lag)
-        df[f"ubs_sell_lag{lag}"] = df[TARGET].shift(lag)
+        df[f"xauusd_lag{lag}"]          = df["xauusd"].shift(lag)
+        df[f"usdidr_lag{lag}"]          = df["usdidr"].shift(lag)
+        df[f"premium_ratio_lag{lag}"]   = df["ubs_premium_ratio"].shift(lag)
 
     for window in [5, 10, 20]:
-        df[f"xauusd_ma{window}"]   = df["xauusd"].rolling(window).mean()
-        df[f"usdidr_ma{window}"]   = df["usdidr"].rolling(window).mean()
-        df[f"ubs_sell_ma{window}"] = df[TARGET].rolling(window).mean()
+        df[f"xauusd_ma{window}"]        = df["xauusd"].rolling(window).mean()
+        df[f"usdidr_ma{window}"]        = df["usdidr"].rolling(window).mean()
+        df[f"premium_ratio_ma{window}"] = df["ubs_premium_ratio"].rolling(window).mean()
 
-    df["xauusd_pct_change"] = df["xauusd"].pct_change()
-    df["usdidr_pct_change"] = df["usdidr"].pct_change()
-    df["implied_x_1g"]      = (df["xauusd"] / 31.1035) * df["usdidr"]
-    df["day_of_week"]       = df.index.dayofweek
-    df["month"]             = df.index.month
+    df["xauusd_pct_change"]  = df["xauusd"].pct_change()
+    df["usdidr_pct_change"]  = df["usdidr"].pct_change()
+    df["day_of_week"]        = df.index.dayofweek
+    df["month"]              = df.index.month
 
     df.dropna(inplace=True)
     return df
@@ -57,26 +64,18 @@ def get_features(df: pd.DataFrame) -> list[str]:
     return [c for c in df.columns if c not in EXCLUDE_COLS]
 
 
-def regression_metrics(y_true, y_pred) -> dict:
-    mae  = mean_absolute_error(y_true, y_pred)
-    rmse = mean_squared_error(y_true, y_pred) ** 0.5
-    mape = (abs((y_true - y_pred) / y_true) * 100).mean()
+def price_metrics(y_price_true, y_price_pred) -> dict:
+    mae  = mean_absolute_error(y_price_true, y_price_pred)
+    rmse = mean_squared_error(y_price_true, y_price_pred) ** 0.5
+    mape = (abs((y_price_true - y_price_pred) / y_price_true) * 100).mean()
     return {"mae": round(mae, 2), "rmse": round(rmse, 2), "mape": round(mape, 4)}
-
-
-def to_log(y):
-    return np.log1p(y)
-
-
-def from_log(y):
-    return np.expm1(y)
 
 
 def build_model() -> XGBRegressor:
     return XGBRegressor(
-        n_estimators=500,
-        learning_rate=0.05,
-        max_depth=5,
+        n_estimators=600,
+        learning_rate=0.03,
+        max_depth=4,
         subsample=0.8,
         colsample_bytree=0.8,
         min_child_weight=5,
@@ -86,9 +85,10 @@ def build_model() -> XGBRegressor:
 
 
 def cross_validate(df: pd.DataFrame, features: list[str]) -> list[dict]:
-    X  = df[features].values
-    y  = df[TARGET].values
-    y_log = to_log(y)
+    X       = df[features].values
+    y_ratio = df[TARGET].values
+    y_price = df["ubs_sell_idr"].values
+    implied = df["implied_x_1g"].values
 
     tscv    = TimeSeriesSplit(n_splits=5)
     results = []
@@ -96,13 +96,11 @@ def cross_validate(df: pd.DataFrame, features: list[str]) -> list[dict]:
     print("TimeSeriesSplit cross-validation (5 folds):")
     for fold, (train_idx, val_idx) in enumerate(tscv.split(X), 1):
         model = build_model()
-        model.fit(
-            X[train_idx], y_log[train_idx],
-            eval_set=[(X[val_idx], y_log[val_idx])],
-            verbose=False,
-        )
-        preds = from_log(model.predict(X[val_idx]))
-        m = regression_metrics(y[val_idx], preds)
+        model.fit(X[train_idx], y_ratio[train_idx], verbose=False)
+
+        pred_ratio  = model.predict(X[val_idx])
+        pred_price  = pred_ratio * implied[val_idx]
+        m = price_metrics(y_price[val_idx], pred_price)
         results.append(m)
         print(
             f"  Fold {fold}  |  train={len(train_idx)}  val={len(val_idx)}"
@@ -112,18 +110,16 @@ def cross_validate(df: pd.DataFrame, features: list[str]) -> list[dict]:
     mean_mae  = sum(r["mae"]  for r in results) / len(results)
     mean_rmse = sum(r["rmse"] for r in results) / len(results)
     mean_mape = sum(r["mape"] for r in results) / len(results)
-    print(f"\n  Mean  |                             "
-          f"  MAE=Rp{mean_mae:>10,.0f}  RMSE=Rp{mean_rmse:>10,.0f}  MAPE={mean_mape:.2f}%")
-
+    print(
+        f"\n  Mean  |                             "
+        f"  MAE=Rp{mean_mae:>10,.0f}  RMSE=Rp{mean_rmse:>10,.0f}  MAPE={mean_mape:.2f}%"
+    )
     return results
 
 
 def train_final(df: pd.DataFrame, features: list[str]) -> XGBRegressor:
-    X     = df[features].values
-    y_log = to_log(df[TARGET].values)
-
     model = build_model()
-    model.fit(X, y_log, verbose=False)
+    model.fit(df[features].values, df[TARGET].values, verbose=False)
     return model
 
 
@@ -143,8 +139,9 @@ if __name__ == "__main__":
     print("\nTraining final model on full dataset...")
     model = train_final(df, features)
 
-    final_preds   = from_log(model.predict(df[features].values))
-    final_metrics = regression_metrics(df[TARGET].values, final_preds)
+    pred_ratio    = model.predict(df[features].values)
+    pred_price    = pred_ratio * df["implied_x_1g"].values
+    final_metrics = price_metrics(df["ubs_sell_idr"].values, pred_price)
     print(f"  Train MAE : Rp{final_metrics['mae']:,.0f}")
     print(f"  Train MAPE: {final_metrics['mape']:.2f}%")
 
@@ -167,9 +164,10 @@ if __name__ == "__main__":
 
     with open(metrics_path, "w") as f:
         json.dump({
-            "cv_folds":       cv_results,
-            "final_train":    final_metrics,
-            "log_transform":  True,
+            "cv_folds":      cv_results,
+            "final_train":   final_metrics,
+            "target":        TARGET,
+            "log_transform": False,
         }, f, indent=2)
 
     print(f"\nSaved -> {model_path}")

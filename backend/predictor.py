@@ -75,19 +75,21 @@ def fetch_ubs_data(days: int = 45) -> pd.DataFrame:
 def build_features(market: pd.DataFrame, ubs: pd.DataFrame) -> pd.DataFrame:
     df = market.join(ubs[["ubs_sell_idr", "ubs_buyback_idr"]], how="inner").sort_index()
 
+    df["implied_x_1g"]     = (df["xauusd"] / 31.1035) * df["usdidr"]
+    df["ubs_premium_ratio"] = df["ubs_sell_idr"] / df["implied_x_1g"]
+
     for lag in [1, 2, 3, 5, 7]:
-        df[f"xauusd_lag{lag}"]   = df["xauusd"].shift(lag)
-        df[f"usdidr_lag{lag}"]   = df["usdidr"].shift(lag)
-        df[f"ubs_sell_lag{lag}"] = df["ubs_sell_idr"].shift(lag)
+        df[f"xauusd_lag{lag}"]        = df["xauusd"].shift(lag)
+        df[f"usdidr_lag{lag}"]        = df["usdidr"].shift(lag)
+        df[f"premium_ratio_lag{lag}"] = df["ubs_premium_ratio"].shift(lag)
 
     for window in [5, 10, 20]:
-        df[f"xauusd_ma{window}"]   = df["xauusd"].rolling(window).mean()
-        df[f"usdidr_ma{window}"]   = df["usdidr"].rolling(window).mean()
-        df[f"ubs_sell_ma{window}"] = df["ubs_sell_idr"].rolling(window).mean()
+        df[f"xauusd_ma{window}"]        = df["xauusd"].rolling(window).mean()
+        df[f"usdidr_ma{window}"]        = df["usdidr"].rolling(window).mean()
+        df[f"premium_ratio_ma{window}"] = df["ubs_premium_ratio"].rolling(window).mean()
 
     df["xauusd_pct_change"] = df["xauusd"].pct_change()
     df["usdidr_pct_change"] = df["usdidr"].pct_change()
-    df["implied_x_1g"]      = (df["xauusd"] / 31.1035) * df["usdidr"]
     df["day_of_week"]       = df.index.dayofweek
     df["month"]             = df.index.month
 
@@ -105,16 +107,16 @@ def predict_current() -> dict:
     if df.empty:
         raise RuntimeError("Not enough data to generate features for prediction.")
 
-    latest    = df.iloc[[-1]]
-    X         = latest[features].values
-    log_pred  = model.predict(X)[0]
-    price     = float(np.expm1(log_pred))
-    implied   = float(latest["implied_x_1g"].iloc[0])
-    premium   = (price - implied) / implied * 100
+    latest         = df.iloc[[-1]]
+    X              = latest[features].values
+    pred_ratio     = float(model.predict(X)[0])
+    implied        = float(latest["implied_x_1g"].iloc[0])
+    price          = pred_ratio * implied
+    premium        = (pred_ratio - 1.0) * 100
 
-    actual        = int(latest["ubs_sell_idr"].iloc[0])
-    error_idr     = round(price) - actual
-    error_pct     = round((price - actual) / actual * 100, 2)
+    actual         = int(latest["ubs_sell_idr"].iloc[0])
+    error_idr      = round(price) - actual
+    error_pct      = round((price - actual) / actual * 100, 2)
 
     return {
         "date":                  str(latest.index[0].date()),
@@ -158,7 +160,9 @@ def forecast_budget(budget_idr: float, weight_gram: float = 1.0) -> dict:
     if df.empty:
         raise RuntimeError("Not enough data to generate forecast.")
 
-    current_price = round(float(np.expm1(model.predict(df.iloc[[-1]][features].values)[0])))
+    last_row      = df.iloc[[-1]]
+    pred_ratio    = float(model.predict(last_row[features].values)[0])
+    current_price = round(pred_ratio * float(last_row["implied_x_1g"].iloc[0]))
     current_units = budget_idr / (current_price * weight_gram)
 
     xau_last5 = df["xauusd"].tail(5)
@@ -166,8 +170,8 @@ def forecast_budget(budget_idr: float, weight_gram: float = 1.0) -> dict:
     xau_trend = (xau_last5.iloc[-1] - xau_last5.iloc[0]) / 5
     idr_trend = (idr_last5.iloc[-1] - idr_last5.iloc[0]) / 5
 
-    forecast = []
-    last_row = df.iloc[-1].copy()
+    forecast   = []
+    last_row   = df.iloc[-1].copy()
     best_price = current_price
     best_date  = str(df.index[-1].date())
 
@@ -186,9 +190,10 @@ def forecast_budget(budget_idr: float, weight_gram: float = 1.0) -> dict:
         future_row["xauusd_pct_change"] = (projected_xau - float(last_row["xauusd"])) / float(last_row["xauusd"])
         future_row["usdidr_pct_change"] = (projected_idr - float(last_row["usdidr"])) / float(last_row["usdidr"])
 
-        X           = future_row[features].values.reshape(1, -1)
-        log_pred    = model.predict(X)[0]
-        pred_price  = round(float(np.expm1(log_pred)))
+        X              = future_row[features].values.reshape(1, -1)
+        future_implied = (projected_xau / 31.1035) * projected_idr
+        pred_ratio     = float(model.predict(X)[0])
+        pred_price     = round(pred_ratio * future_implied)
         units       = budget_idr / (pred_price * weight_gram)
 
         if pred_price < best_price:
