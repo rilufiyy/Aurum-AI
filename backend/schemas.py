@@ -1,0 +1,46 @@
+from pydantic import BaseModel
+
+
+class PredictionResponse(BaseModel):
+    date: str
+    predicted_price_idr: int
+    actual_ubs_price_idr: int
+    xauusd_live: float
+    usdidr_live: float
+    implied_spot_idr: float
+    premium_pct: float
+    prediction_error_idr: int
+    prediction_error_pct: float
+
+
+class HistoryPoint(BaseModel):
+    date: str
+    ubs_sell_idr: float
+    xauusd: float
+    usdidr: float
+    implied_spot_idr: float
+
+
+class HistoryResponse(BaseModel):
+    data: list[HistoryPoint]
+
+
+class BudgetRequest(BaseModel):
+    budget_idr: float
+    weight_gram: float = 1.0
+
+
+class BudgetDayForecast(BaseModel):
+    date: str
+    predicted_price_idr: int
+    units_affordable: float
+    is_best_day: bool
+
+
+class BudgetResponse(BaseModel):
+    budget_idr: float
+    weight_gram: float
+    current_price_idr: int
+    current_units_affordable: float
+    forecast: list[BudgetDayForecast]
+    recommendation: str
