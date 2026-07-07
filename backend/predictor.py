@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from datetime import datetime, timedelta
 
 import joblib
@@ -12,8 +13,11 @@ BASE_DIR      = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODEL_PATH    = os.path.join(BASE_DIR, "model", "model.pkl")
 FEATURES_PATH = os.path.join(BASE_DIR, "model", "feature_names.json")
 
+CACHE_TTL = 300  # seconds (5 minutes)
+
 _model    = None
 _features = None
+_cache: dict = {}
 
 
 def get_model():
@@ -22,6 +26,15 @@ def get_model():
         _model    = joblib.load(MODEL_PATH)
         _features = json.load(open(FEATURES_PATH))
     return _model, _features
+
+
+def _cached(key: str, fn, *args, **kwargs):
+    now = time.monotonic()
+    if key in _cache and now - _cache[key]["ts"] < CACHE_TTL:
+        return _cache[key]["data"]
+    result = fn(*args, **kwargs)
+    _cache[key] = {"data": result, "ts": now}
+    return result
 
 
 def fetch_market_data(days: int = 45) -> pd.DataFrame:
