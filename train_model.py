@@ -9,6 +9,7 @@ import json
 import os
 
 import joblib
+import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.model_selection import TimeSeriesSplit
@@ -63,6 +64,14 @@ def regression_metrics(y_true, y_pred) -> dict:
     return {"mae": round(mae, 2), "rmse": round(rmse, 2), "mape": round(mape, 4)}
 
 
+def to_log(y):
+    return np.log1p(y)
+
+
+def from_log(y):
+    return np.expm1(y)
+
+
 def build_model() -> XGBRegressor:
     return XGBRegressor(
         n_estimators=500,
@@ -77,8 +86,9 @@ def build_model() -> XGBRegressor:
 
 
 def cross_validate(df: pd.DataFrame, features: list[str]) -> list[dict]:
-    X = df[features].values
-    y = df[TARGET].values
+    X  = df[features].values
+    y  = df[TARGET].values
+    y_log = to_log(y)
 
     tscv    = TimeSeriesSplit(n_splits=5)
     results = []
@@ -87,11 +97,12 @@ def cross_validate(df: pd.DataFrame, features: list[str]) -> list[dict]:
     for fold, (train_idx, val_idx) in enumerate(tscv.split(X), 1):
         model = build_model()
         model.fit(
-            X[train_idx], y[train_idx],
-            eval_set=[(X[val_idx], y[val_idx])],
+            X[train_idx], y_log[train_idx],
+            eval_set=[(X[val_idx], y_log[val_idx])],
             verbose=False,
         )
-        m = regression_metrics(y[val_idx], model.predict(X[val_idx]))
+        preds = from_log(model.predict(X[val_idx]))
+        m = regression_metrics(y[val_idx], preds)
         results.append(m)
         print(
             f"  Fold {fold}  |  train={len(train_idx)}  val={len(val_idx)}"
@@ -108,11 +119,11 @@ def cross_validate(df: pd.DataFrame, features: list[str]) -> list[dict]:
 
 
 def train_final(df: pd.DataFrame, features: list[str]) -> XGBRegressor:
-    X = df[features].values
-    y = df[TARGET].values
+    X     = df[features].values
+    y_log = to_log(df[TARGET].values)
 
     model = build_model()
-    model.fit(X, y, verbose=False)
+    model.fit(X, y_log, verbose=False)
     return model
 
 
@@ -132,7 +143,7 @@ if __name__ == "__main__":
     print("\nTraining final model on full dataset...")
     model = train_final(df, features)
 
-    final_preds   = model.predict(df[features].values)
+    final_preds   = from_log(model.predict(df[features].values))
     final_metrics = regression_metrics(df[TARGET].values, final_preds)
     print(f"  Train MAE : Rp{final_metrics['mae']:,.0f}")
     print(f"  Train MAPE: {final_metrics['mape']:.2f}%")
@@ -156,8 +167,9 @@ if __name__ == "__main__":
 
     with open(metrics_path, "w") as f:
         json.dump({
-            "cv_folds":     cv_results,
-            "final_train":  final_metrics,
+            "cv_folds":       cv_results,
+            "final_train":    final_metrics,
+            "log_transform":  True,
         }, f, indent=2)
 
     print(f"\nSaved -> {model_path}")
