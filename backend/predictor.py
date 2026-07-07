@@ -113,8 +113,8 @@ def build_features(market: pd.DataFrame, ubs: pd.DataFrame) -> pd.DataFrame:
 def predict_current() -> dict:
     model, features = get_model()
 
-    market = fetch_market_data(days=45)
-    ubs    = fetch_ubs_data(days=45)
+    market = _cached("market_45", fetch_market_data, 45)
+    ubs    = _cached("ubs_45",    fetch_ubs_data,    45)
     df     = build_features(market, ubs)
 
     if df.empty:
@@ -145,8 +145,9 @@ def predict_current() -> dict:
 
 
 def get_history(days: int = 30) -> list[dict]:
-    market = fetch_market_data(days=days + 10)
-    ubs    = fetch_ubs_data(days=days + 10)
+    fetch_days = days + 10
+    market = _cached(f"market_{fetch_days}", fetch_market_data, fetch_days)
+    ubs    = _cached(f"ubs_{fetch_days}",    fetch_ubs_data,    fetch_days)
 
     df = market.join(ubs[["ubs_sell_idr"]], how="inner").tail(days)
 
@@ -166,8 +167,8 @@ def get_history(days: int = 30) -> list[dict]:
 def forecast_budget(budget_idr: float, weight_gram: float = 1.0) -> dict:
     model, features = get_model()
 
-    market = fetch_market_data(days=45)
-    ubs    = fetch_ubs_data(days=45)
+    market = _cached("market_45", fetch_market_data, 45)
+    ubs    = _cached("ubs_45",    fetch_ubs_data,    45)
     df     = build_features(market, ubs)
 
     if df.empty:

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aurum AI - UBS Gold Price Predictor</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <span class="logo">Aurum AI</span>
+      <span class="tagline">Real-Time UBS Gold Price Predictor</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="predict-section">
+      <div class="card" id="card-predict">
+        <div class="card-label">Prediksi Harga UBS Hari Ini</div>
+        <div class="price-main" id="pred-price">Memuat...</div>
+        <div class="price-sub" id="pred-date"></div>
+        <div class="metrics-row">
+          <div class="metric">
+            <span class="metric-label">Harga Aktual UBS</span>
+            <span class="metric-value" id="actual-price"></span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Selisih</span>
+            <span class="metric-value" id="error-idr"></span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Error %</span>
+            <span class="metric-value" id="error-pct"></span>
+          </div>
+        </div>
+        <div class="metrics-row">
+          <div class="metric">
+            <span class="metric-label">XAU/USD</span>
+            <span class="metric-value" id="xauusd"></span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">USD/IDR</span>
+            <span class="metric-value" id="usdidr"></span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Implied Spot</span>
+            <span class="metric-value" id="implied"></span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Premium UBS</span>
+            <span class="metric-value" id="premium"></span>
+          </div>
+        </div>
+        <div id="predict-error" class="error-msg hidden"></div>
+      </div>
+    </section>
+
+    <section class="chart-section">
+      <div class="card">
+        <div class="card-label">Riwayat Harga 30 Hari Terakhir</div>
+        <div class="chart-wrap">
+          <canvas id="history-chart"></canvas>
+        </div>
+        <div id="chart-error" class="error-msg hidden"></div>
+      </div>
+    </section>
+
+    <section class="budget-section">
+      <div class="card">
+        <div class="card-label">Kalkulator Budget Emas</div>
+        <form id="budget-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="budget-input">Budget (Rp)</label>
+              <input
+                type="number"
+                id="budget-input"
+                placeholder="Contoh: 5000000"
+                min="1"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="weight-input">Berat (gram)</label>
+              <select id="weight-input">
+                <option value="0.5">0.5 g</option>
+                <option value="1" selected>1 g</option>
+                <option value="2">2 g</option>
+                <option value="5">5 g</option>
+                <option value="10">10 g</option>
+                <option value="25">25 g</option>
+                <option value="50">50 g</option>
+                <option value="100">100 g</option>
+              </select>
+            </div>
+            <button type="submit" id="budget-btn">Hitung</button>
+          </div>
+        </form>
+
+        <div id="budget-result" class="hidden">
+          <div class="budget-summary">
+            <div class="metric">
+              <span class="metric-label">Harga Saat Ini</span>
+              <span class="metric-value" id="b-current-price"></span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Unit Bisa Dibeli Sekarang</span>
+              <span class="metric-value" id="b-current-units"></span>
+            </div>
+          </div>
+          <div class="recommendation" id="b-recommendation"></div>
+          <div class="forecast-table-wrap">
+            <table id="forecast-table">
+              <thead>
+                <tr>
+                  <th>Tanggal</th>
+                  <th>Prediksi Harga</th>
+                  <th>Unit Bisa Dibeli</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="forecast-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="budget-error" class="error-msg hidden"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>Aurum AI &mdash; Data: yfinance &amp; UBS Lifestyle &mdash; Model: XGBoost premium ratio</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
