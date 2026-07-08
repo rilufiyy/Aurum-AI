@@ -257,6 +257,37 @@ tbody tr.best-day td {
   border-radius: 4px;
 }
 
+.data-source-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  margin-bottom: 12px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.source-sep {
+  color: var(--border);
+}
+
+.source-item span {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.stale-warning {
+  background: rgba(201, 168, 76, 0.08);
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 8px 8px 0;
+  color: var(--gold-light);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+
 .error-msg {
   color: var(--red);
   font-size: 0.85rem;

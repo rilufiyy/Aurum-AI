@@ -17,9 +17,19 @@ async function loadPrediction() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const d = await res.json();
 
-    document.getElementById("pred-price").textContent = `Rp${fmt(d.predicted_price_idr)}`;
-    document.getElementById("pred-date").textContent  = `Data per ${d.date}`;
+    document.getElementById("pred-price").textContent   = `Rp${fmt(d.predicted_price_idr)}`;
+    document.getElementById("pred-date").textContent    = `Prediksi per ${d.date}`;
     document.getElementById("actual-price").textContent = `Rp${fmt(d.actual_ubs_price_idr)}`;
+
+    document.getElementById("ubs-date-label").textContent = d.ubs_price_date;
+    document.getElementById("xau-date-label").textContent = d.xauusd_date;
+
+    const staleEl = document.getElementById("stale-warning");
+    if (d.is_stale) {
+      staleEl.classList.remove("hidden");
+    } else {
+      staleEl.classList.add("hidden");
+    }
 
     const errIdrEl  = document.getElementById("error-idr");
     const errPctEl  = document.getElementById("error-pct");

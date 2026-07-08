@@ -11,6 +11,9 @@ class PredictionResponse(BaseModel):
     premium_pct: float
     prediction_error_idr: int
     prediction_error_pct: float
+    ubs_price_date: str
+    xauusd_date: str
+    is_stale: bool
 
 
 class HistoryPoint(BaseModel):

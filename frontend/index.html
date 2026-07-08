@@ -53,6 +53,14 @@
             <span class="metric-value" id="premium"></span>
           </div>
         </div>
+        <div class="data-source-row">
+          <span class="source-item">Harga UBS: <span id="ubs-date-label"></span></span>
+          <span class="source-sep">&middot;</span>
+          <span class="source-item">XAU/USD: <span id="xau-date-label"></span></span>
+        </div>
+        <div id="stale-warning" class="stale-warning hidden">
+          Harga UBS belum diperbarui hari ini. Implied spot menggunakan data XAU/USD terkini sehingga premium bisa tampak tidak wajar.
+        </div>
         <div id="predict-error" class="error-msg hidden"></div>
       </div>
     </section>

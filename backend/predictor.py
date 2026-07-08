@@ -131,8 +131,13 @@ def predict_current() -> dict:
     error_idr      = round(price) - actual
     error_pct      = round((price - actual) / actual * 100, 2)
 
+    ubs_date   = str(latest.index[0].date())
+    xau_date   = str(market.index[-1].date())
+    today      = datetime.today().date().isoformat()
+    is_stale   = ubs_date < today
+
     return {
-        "date":                  str(latest.index[0].date()),
+        "date":                  ubs_date,
         "predicted_price_idr":   round(price),
         "actual_ubs_price_idr":  actual,
         "xauusd_live":           round(float(latest["xauusd"].iloc[0]), 2),
@@ -141,6 +146,9 @@ def predict_current() -> dict:
         "premium_pct":           round(premium, 2),
         "prediction_error_idr":  error_idr,
         "prediction_error_pct":  error_pct,
+        "ubs_price_date":        ubs_date,
+        "xauusd_date":           xau_date,
+        "is_stale":              is_stale,
     }
 
 
