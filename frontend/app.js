@@ -1,5 +1,38 @@
 const API = "http://127.0.0.1:8000";
 
+function getToken() {
+  return localStorage.getItem("aurum_token");
+}
+
+function logout() {
+  localStorage.removeItem("aurum_token");
+  window.location.replace("login.html");
+}
+
+function authHeaders(extra = {}) {
+  return { "Authorization": `Bearer ${getToken()}`, ...extra };
+}
+
+async function authFetch(url, options = {}) {
+  if (!getToken()) {
+    window.location.replace("login.html");
+    return;
+  }
+  options.headers = { ...authHeaders(options.headers || {}) };
+  const res = await fetch(url, options);
+  if (res.status === 401) {
+    logout();
+    return;
+  }
+  return res;
+}
+
+if (!getToken()) {
+  window.location.replace("login.html");
+}
+
+document.getElementById("logout-btn").addEventListener("click", logout);
+
 function fmt(n) {
   return new Intl.NumberFormat("id-ID").format(n);
 }
@@ -13,8 +46,8 @@ function setClass(el, value) {
 async function loadPrediction() {
   const errEl = document.getElementById("predict-error");
   try {
-    const res = await fetch(`${API}/api/predict`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res = await authFetch(`${API}/api/predict`);
+    if (!res || !res.ok) throw new Error(`HTTP ${res?.status}`);
     const d = await res.json();
 
     document.getElementById("pred-price").textContent   = `Rp${fmt(d.predicted_price_idr)}`;
@@ -31,19 +64,19 @@ async function loadPrediction() {
       staleEl.classList.add("hidden");
     }
 
-    const errIdrEl  = document.getElementById("error-idr");
-    const errPctEl  = document.getElementById("error-pct");
+    const errIdrEl = document.getElementById("error-idr");
+    const errPctEl = document.getElementById("error-pct");
     const sign = d.prediction_error_idr >= 0 ? "+" : "";
-    errIdrEl.textContent  = `${sign}Rp${fmt(Math.abs(d.prediction_error_idr))}`;
-    errPctEl.textContent  = `${sign}${d.prediction_error_pct}%`;
+    errIdrEl.textContent = `${sign}Rp${fmt(Math.abs(d.prediction_error_idr))}`;
+    errPctEl.textContent = `${sign}${d.prediction_error_pct}%`;
     setClass(errIdrEl, d.prediction_error_idr);
     setClass(errPctEl, d.prediction_error_pct);
 
-    document.getElementById("xauusd").textContent  = `$${d.xauusd_live.toLocaleString("en-US", {minimumFractionDigits: 2})}`;
+    document.getElementById("xauusd").textContent  = `$${d.xauusd_live.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
     document.getElementById("usdidr").textContent  = `Rp${fmt(Math.round(d.usdidr_live))}`;
     document.getElementById("implied").textContent = `Rp${fmt(d.implied_spot_idr)}`;
 
-    const premEl = document.getElementById("premium");
+    const premEl   = document.getElementById("premium");
     const premSign = d.premium_pct >= 0 ? "+" : "";
     premEl.textContent = `${premSign}${d.premium_pct}%`;
     setClass(premEl, d.premium_pct);
@@ -60,16 +93,15 @@ let historyChart = null;
 async function loadHistory() {
   const errEl = document.getElementById("chart-error");
   try {
-    const res = await fetch(`${API}/api/history?days=30`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res = await authFetch(`${API}/api/history?days=30`);
+    if (!res || !res.ok) throw new Error(`HTTP ${res?.status}`);
     const { data } = await res.json();
 
-    const labels     = data.map(r => r.date);
-    const ubsPrices  = data.map(r => r.ubs_sell_idr);
-    const implied    = data.map(r => r.implied_spot_idr);
+    const labels    = data.map(r => r.date);
+    const ubsPrices = data.map(r => r.ubs_sell_idr);
+    const implied   = data.map(r => r.implied_spot_idr);
 
     const ctx = document.getElementById("history-chart").getContext("2d");
-
     if (historyChart) historyChart.destroy();
 
     historyChart = new Chart(ctx, {
@@ -155,14 +187,14 @@ document.getElementById("budget-form").addEventListener("submit", async (e) => {
   errEl.classList.add("hidden");
 
   try {
-    const res = await fetch(`${API}/api/budget`, {
+    const res = await authFetch(`${API}/api/budget`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ budget_idr: budgetVal, weight_gram: weightVal }),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || `HTTP ${res.status}`);
+    if (!res || !res.ok) {
+      const err = await res?.json().catch(() => ({}));
+      throw new Error(err?.detail || `HTTP ${res?.status}`);
     }
     const d = await res.json();
 

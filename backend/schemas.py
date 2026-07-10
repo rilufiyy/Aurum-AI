@@ -1,6 +1,11 @@
 from pydantic import BaseModel
 
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
 class PredictionResponse(BaseModel):
     date: str
     predicted_price_idr: int

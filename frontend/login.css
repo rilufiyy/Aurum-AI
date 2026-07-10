@@ -1,0 +1,123 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --gold:      #c9a84c;
+  --gold-light:#e8c97a;
+  --bg:        #0f0f13;
+  --surface:   #1a1a22;
+  --border:    #2e2e3e;
+  --surface2:  #23232f;
+  --text:      #e8e8f0;
+  --text-muted:#888899;
+  --red:       #e05c5c;
+  --radius:    12px;
+}
+
+body {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-wrap {
+  width: 100%;
+  max-width: 380px;
+  padding: 16px;
+}
+
+.login-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 40px 36px 36px;
+}
+
+.login-logo {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.03em;
+  margin-bottom: 6px;
+}
+
+.login-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 32px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.field label {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.field input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.95rem;
+  padding: 11px 14px;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+
+.field input:focus {
+  border-color: var(--gold);
+}
+
+button[type="submit"] {
+  width: 100%;
+  background: var(--gold);
+  color: #0f0f13;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 12px;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.15s;
+}
+
+button[type="submit"]:hover {
+  background: var(--gold-light);
+}
+
+button[type="submit"]:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.error-msg {
+  color: var(--red);
+  font-size: 0.83rem;
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: rgba(224, 92, 92, 0.08);
+  border-radius: 8px;
+  border: 1px solid rgba(224, 92, 92, 0.25);
+  text-align: center;
+}
+
+.hidden {
+  display: none !important;
+}
