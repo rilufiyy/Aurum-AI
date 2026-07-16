@@ -52,3 +52,19 @@ class BudgetResponse(BaseModel):
     current_units_affordable: float
     forecast: list[BudgetDayForecast]
     recommendation: str
+
+
+class NewsItem(BaseModel):
+    title: str
+    source: str
+    published: str
+    link: str
+    sentiment: str
+    score: int
+
+
+class SentimentResponse(BaseModel):
+    bullish_pct: float
+    label: str
+    news: list[NewsItem]
+    fetched_at: str

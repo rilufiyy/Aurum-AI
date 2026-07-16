@@ -88,6 +88,48 @@
       </div>
     </section>
 
+    <section class="sentiment-section">
+      <div class="card">
+        <div class="card-label">Market Sentiment Emas Global</div>
+        <div class="sentiment-body">
+          <div class="gauge-wrap">
+            <svg viewBox="0 0 200 130" class="gauge-svg" aria-hidden="true">
+              <defs>
+                <linearGradient id="arc-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%"   stop-color="#e05c5c"/>
+                  <stop offset="50%"  stop-color="#c9a84c"/>
+                  <stop offset="100%" stop-color="#4caf7d"/>
+                </linearGradient>
+              </defs>
+              <path d="M 15 115 A 85 85 0 0 0 185 115"
+                    fill="none" stroke="#2e2e3e" stroke-width="14" stroke-linecap="round"/>
+              <path id="gauge-arc" d="M 15 115 A 85 85 0 0 0 185 115"
+                    fill="none" stroke="url(#arc-grad)" stroke-width="14" stroke-linecap="round"
+                    style="stroke-dasharray:267;stroke-dashoffset:267;transition:stroke-dashoffset 0.8s ease"/>
+              <line id="gauge-needle"
+                    x1="100" y1="115" x2="183" y2="115"
+                    stroke="#e8e8f0" stroke-width="2.5" stroke-linecap="round"
+                    transform="rotate(-180 100 115)"
+                    style="transition:transform 0.8s ease"/>
+              <circle cx="100" cy="115" r="5" fill="#e8e8f0"/>
+              <text id="gauge-pct" x="100" y="95" text-anchor="middle"
+                    font-size="24" fill="#e8e8f0" font-weight="700" font-family="Segoe UI,sans-serif">--</text>
+              <text x="18"  y="128" font-size="9" fill="#888899" font-family="Segoe UI,sans-serif">BEARISH</text>
+              <text x="140" y="128" font-size="9" fill="#888899" font-family="Segoe UI,sans-serif">BULLISH</text>
+            </svg>
+            <div id="gauge-label" class="gauge-label">Memuat...</div>
+            <div id="gauge-updated" class="gauge-updated"></div>
+          </div>
+
+          <div class="news-list-wrap">
+            <div class="news-list-header">Berita Terkini</div>
+            <ul id="news-list" class="news-list"></ul>
+            <div id="sentiment-error" class="error-msg hidden"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="chart-section">
       <div class="card">
         <div class="card-label">Riwayat Harga 30 Hari Terakhir</div>

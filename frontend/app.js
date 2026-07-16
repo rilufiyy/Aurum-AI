@@ -267,5 +267,67 @@ document.getElementById("budget-form").addEventListener("submit", async (e) => {
   }
 });
 
+const GAUGE_CIRCUMFERENCE = 267;
+
+function updateGauge(pct) {
+  const arc      = document.getElementById("gauge-arc");
+  const needle   = document.getElementById("gauge-needle");
+  const pctEl    = document.getElementById("gauge-pct");
+  const offset   = GAUGE_CIRCUMFERENCE * (1 - pct / 100);
+  const angle    = (pct / 100) * 180 - 180;
+
+  arc.style.strokeDashoffset    = offset;
+  needle.setAttribute("transform", `rotate(${angle} 100 115)`);
+  pctEl.textContent             = `${pct}%`;
+}
+
+async function loadSentiment() {
+  const errEl = document.getElementById("sentiment-error");
+  try {
+    const res = await authFetch(`${API}/api/sentiment`);
+    if (!res || !res.ok) throw new Error(`HTTP ${res?.status}`);
+    const d = await res.json();
+
+    updateGauge(d.bullish_pct);
+    document.getElementById("gauge-label").textContent   = d.label;
+    document.getElementById("gauge-updated").textContent =
+      `Diperbarui: ${new Date(d.fetched_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}`;
+
+    const list = document.getElementById("news-list");
+    list.innerHTML = "";
+
+    if (d.news.length === 0) {
+      list.innerHTML = `<li style="color:var(--text-muted);font-size:0.85rem">Tidak ada berita ditemukan.</li>`;
+      return;
+    }
+
+    for (const item of d.news) {
+      const li = document.createElement("li");
+      li.className = "news-item";
+
+      const badgeLabel = item.sentiment === "bullish" ? "Bullish"
+                       : item.sentiment === "bearish" ? "Bearish"
+                       : "Netral";
+
+      li.innerHTML = `
+        <div>
+          <span class="news-badge ${item.sentiment}">${badgeLabel}</span>
+        </div>
+        <div>
+          <a class="news-title" href="${item.link}" target="_blank" rel="noopener">${item.title}</a>
+          <div class="news-meta">${item.source}</div>
+        </div>
+      `;
+      list.appendChild(li);
+    }
+
+    errEl.classList.add("hidden");
+  } catch (e) {
+    errEl.textContent = `Gagal memuat sentimen: ${e.message}`;
+    errEl.classList.remove("hidden");
+  }
+}
+
 loadPrediction();
 loadHistory();
+loadSentiment();

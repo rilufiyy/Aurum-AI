@@ -9,7 +9,9 @@ from schemas import (
     HistoryResponse,
     LoginRequest,
     PredictionResponse,
+    SentimentResponse,
 )
+from sentiment import fetch_sentiment
 
 app = FastAPI(title="Aurum AI", description="Real-Time UBS Gold Price Predictor")
 
@@ -45,6 +47,14 @@ def predict():
 def history(days: int = Query(default=30, ge=7, le=365)):
     try:
         return {"data": get_history(days=days)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/sentiment", response_model=SentimentResponse, dependencies=[Depends(require_auth)])
+def sentiment():
+    try:
+        return fetch_sentiment()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
