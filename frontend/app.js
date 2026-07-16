@@ -33,6 +33,45 @@ if (!getToken()) {
 
 document.getElementById("logout-btn").addEventListener("click", logout);
 
+const BRANDS = {
+  ubs:       { label: "UBS",       available: true  },
+  antam:     { label: "Antam LM",  available: false },
+  galeri24:  { label: "Galeri24",  available: false },
+  pegadaian: { label: "Pegadaian", available: false },
+};
+
+function handleBrandChange(brand) {
+  const info          = BRANDS[brand];
+  const comingSoon    = document.getElementById("coming-soon-section");
+  const predictSec    = document.querySelector(".predict-section");
+  const chartSec      = document.querySelector(".chart-section");
+  const budgetSec     = document.querySelector(".budget-section");
+
+  if (!info.available) {
+    document.getElementById("coming-soon-brand").textContent = info.label;
+    comingSoon.classList.remove("hidden");
+    predictSec.classList.add("hidden");
+    chartSec.classList.add("hidden");
+    budgetSec.classList.add("hidden");
+    return;
+  }
+
+  comingSoon.classList.add("hidden");
+  predictSec.classList.remove("hidden");
+  chartSec.classList.remove("hidden");
+  budgetSec.classList.remove("hidden");
+
+  document.getElementById("predict-card-label").textContent = `Prediksi Harga ${info.label} Hari Ini`;
+  document.getElementById("actual-label").textContent       = `Harga Aktual ${info.label}`;
+  document.getElementById("premium-label").textContent      = `Premium ${info.label}`;
+  document.getElementById("brand-date-name").textContent    = info.label;
+  document.getElementById("budget-card-label").textContent  = `Kalkulator Budget Emas — ${info.label}`;
+}
+
+document.getElementById("brand-select").addEventListener("change", (e) => {
+  handleBrandChange(e.target.value);
+});
+
 function fmt(n) {
   return new Intl.NumberFormat("id-ID").format(n);
 }

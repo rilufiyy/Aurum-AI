@@ -17,14 +17,36 @@
   </header>
 
   <main>
+    <section class="brand-section">
+      <div class="brand-selector">
+        <label for="brand-select">Brand Emas</label>
+        <select id="brand-select">
+          <option value="ubs">UBS (PT Untung Bersama Sejahtera)</option>
+          <option value="antam">Antam LM (Logam Mulia)</option>
+          <option value="galeri24">Galeri24</option>
+          <option value="pegadaian">Pegadaian</option>
+        </select>
+      </div>
+    </section>
+
+    <section id="coming-soon-section" class="hidden">
+      <div class="card coming-soon-card">
+        <div class="coming-soon-title">Segera Hadir</div>
+        <div class="coming-soon-desc">
+          Data prediksi untuk <strong id="coming-soon-brand"></strong> sedang dalam pengembangan.
+          Saat ini hanya UBS yang tersedia.
+        </div>
+      </div>
+    </section>
+
     <section class="predict-section">
       <div class="card" id="card-predict">
-        <div class="card-label">Prediksi Harga UBS Hari Ini</div>
+        <div class="card-label" id="predict-card-label">Prediksi Harga UBS Hari Ini</div>
         <div class="price-main" id="pred-price">Memuat...</div>
         <div class="price-sub" id="pred-date"></div>
         <div class="metrics-row">
           <div class="metric">
-            <span class="metric-label">Harga Aktual UBS</span>
+            <span class="metric-label" id="actual-label">Harga Aktual UBS</span>
             <span class="metric-value" id="actual-price"></span>
           </div>
           <div class="metric">
@@ -50,12 +72,12 @@
             <span class="metric-value" id="implied"></span>
           </div>
           <div class="metric">
-            <span class="metric-label">Premium UBS</span>
+            <span class="metric-label" id="premium-label">Premium UBS</span>
             <span class="metric-value" id="premium"></span>
           </div>
         </div>
         <div class="data-source-row">
-          <span class="source-item">Harga UBS: <span id="ubs-date-label"></span></span>
+          <span class="source-item">Harga <span id="brand-date-name">UBS</span>: <span id="ubs-date-label"></span></span>
           <span class="source-sep">&middot;</span>
           <span class="source-item">XAU/USD: <span id="xau-date-label"></span></span>
         </div>
@@ -78,7 +100,7 @@
 
     <section class="budget-section">
       <div class="card">
-        <div class="card-label">Kalkulator Budget Emas</div>
+        <div class="card-label" id="budget-card-label">Kalkulator Budget Emas</div>
         <form id="budget-form">
           <div class="form-row">
             <div class="form-group">
